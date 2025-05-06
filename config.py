@@ -53,12 +53,12 @@ class Config:
         self.image_height = 256  # For our cropped images
         self.image_width = 256
         # Modified parameters for 100-wavelength synthetic data
-        self.num_wavelengths = 100  # Changed from 220 or 900
+        self.num_wavelengths = 32  # Changed from 220 or 900
         self.wavelength_range = (800, 1700)  # nm, keep same range
 
         # Synthetic bands run 800,801,…,1700 nm
         # Update wavelength indices and setup
-        self.full_wavelengths = np.linspace(800, 1700, 100)  # 100 evenly spaced points
+        self.full_wavelengths = np.linspace(800, 1700, 32)  # 100 evenly spaced points
         self.wavelength_indices = np.arange(len(self.full_wavelengths))  # All 100 indices
         self.num_output_wavelengths = len(self.wavelength_indices)  # 100 bands
 
