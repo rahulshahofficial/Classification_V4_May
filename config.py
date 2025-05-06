@@ -11,12 +11,18 @@ class Config:
         else:  # macOS
             self.base_path = '/Volumes/ValentineLab/SimulationData/Rahul/Hyperspectral Imaging Project'
 
+        # Set model path to the central Models folder
+        if platform.system() == 'Windows':
+            self.models_path = os.path.join(self.base_path, "Machine Learning Codes", "Models")
+        else:  # macOS
+            self.models_path = os.path.join(self.base_path, "Machine Learning Codes", "Models")
+
         # # Dataset paths
         self.dataset_path = os.path.join(self.base_path, 'HSI Data Sets',
                                        'Plastics HSI Dataset',
                                        # 'SyntheticHSI_Images_Blue')
                                        # '042525_SyntheticHSI_Images_5shapes_multiple')
-                                       '043025_SyntheticHSI_Images_256x256_100wl_grids')
+                                       '043025_SyntheticHSI_Images_256x256_32wl_grids')
 
 
 
@@ -64,14 +70,11 @@ class Config:
 
         self.conv_channels = [1, 128, 256]  # 3D Conv channels
 
-        # Output paths
-        # self.num_filters = 64
-        # self.superpixel_size = 8 # Change superpixel size here
-        # self.model_save_path = 'models/013125_hyperspectral_model_800to1700.pth'
+        # Updated model save path to use centralized location
+        # Model save information: Date_Size_WL_Spectial_Test#
 
-
-        self.model_save_path = 'models/050125_Plastic_100wl_Test1.pth'
-        self.results_path = 'results/050125'
+        self.model_save_path = os.path.join(self.models_path, '050625_256p_100wl_Base_Test1.pth')
+        self.results_path = 'results/050625'
 
 config = Config()
 print(f"Number of wavelength indices: {len(config.wavelength_indices)}")
