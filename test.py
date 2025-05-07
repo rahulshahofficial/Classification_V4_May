@@ -763,7 +763,7 @@ class ReconstructionViewer(QMainWindow):
 
             # Update UI
             total_elapsed_time = time.time() - start_time_total
-            self.time_label.setText(f"Time: {total_elapsed_time:.3f}s (Infer: {inference_time:.3f}s)")
+            self.time_label.setText(f"Time: {total_elapsed_time:.2f}s (Infer: {inference_time*1000:.0f}ms)")
 
             self.metrics_labels["PSNR"].setText(f"{metrics['psnr']:.2f} dB")
             self.metrics_labels["SSIM"].setText(f"{metrics['ssim']:.4f}")

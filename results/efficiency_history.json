@@ -42,5 +42,49 @@
         ]
       }
     }
+  },
+  {
+    "timestamp": "20250507_120437",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 29.66134548187256,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250507_120509",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 26.55460834503174,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
   }
 ]
