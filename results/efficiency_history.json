@@ -1,0 +1,68 @@
+[
+  {
+    "timestamp": "20250506_143629",
+    "data": {
+      "parameters": 14015260,
+      "flops": 42774298624.0,
+      "time_per_frame_ms": 29.67064380645752,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250507_110902",
+    "data": {
+      "parameters": 14015260,
+      "flops": 42774298624.0,
+      "time_per_frame_ms": 29.68132495880127,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250507_111421",
+    "data": {
+      "parameters": 14015260,
+      "flops": 42774298624.0,
+      "time_per_frame_ms": 28.12478542327881,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+]

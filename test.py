@@ -487,8 +487,8 @@ class ReconstructionViewer(QMainWindow):
         """Analyze and display model efficiency metrics."""
         try:
             # Get sample input dimensions
-            sample_input = torch.zeros((1, 1, 100, 100)).to(self.device)
-            sample_filter = torch.zeros((1, len(config.wavelength_indices), 100, 100)).to(self.device)
+            sample_input = torch.zeros((1, 1, 256, 256)).to(self.device)
+            sample_filter = torch.zeros((1, len(config.wavelength_indices), 256, 256)).to(self.device)
 
             # Calculate efficiency metrics
             efficiency_metrics = HyperspectralMetrics.analyze_model_efficiency(
