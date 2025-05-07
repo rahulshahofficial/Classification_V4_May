@@ -41,15 +41,51 @@ class ReconstructionViewer(QMainWindow):
         self.setWindowTitle('Plastic HSI Reconstruction Viewer (SRNet) - Enhanced Metrics')
         self.setGeometry(100, 100, 1800, 1000)
 
+        # Device configuration (early)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Viewer using device: {self.device}")
+
         # Initialize variables
         self.full_reconstruction = None
-        self.original_image = None
-        self.wavelengths = None
+        self.original_image_chw_numpy = None # Will store C,H,W numpy array
+        # self.wavelengths = None # Will be initialized below
         self.current_wavelength_idx = None
         self.current_metrics = None
         self.current_loss_components = None
 
-        from config import config
+        # --- Pre-compute/Cache Wavelengths ---
+        self.wavelengths = config.full_wavelengths[config.wavelength_indices]
+        self.num_selected_wavelengths = len(self.wavelengths)
+
+        # --- Pre-compute/Cache Filter Matrix ---
+        try:
+            filters_pd = pd.read_csv(config.filter_path, header=None)
+            filter_transmissions_np = filters_pd.iloc[:config.num_filters, 1:].values
+            # Wavelengths from the CSV file
+            csv_wavelengths_np = np.linspace(800, 1700, filter_transmissions_np.shape[1])
+
+            interpolated_list = []
+            for filter_spectrum_np in filter_transmissions_np:
+                # Interpolate to the target wavelengths (self.wavelengths)
+                interp_np = np.interp(self.wavelengths, csv_wavelengths_np, filter_spectrum_np)
+                interpolated_list.append(interp_np)
+
+            # self.filter_matrix will be [num_filters, num_selected_wavelengths]
+            self.filter_matrix = torch.tensor(np.array(interpolated_list), dtype=torch.float32).to(self.device)
+            print(f"Filter matrix loaded and interpolated: {self.filter_matrix.shape} on device {self.filter_matrix.device}")
+        except Exception as e:
+            QMessageBox.critical(self, "Filter Load Error", f"Failed to load or interpolate filters: {e}")
+            raise # Stop if filters can't be loaded
+
+        # --- Pre-compute Superpixel Filter Index Template ---
+        # This template is for a single superpixel
+        sp_h, sp_w = config.superpixel_height, config.superpixel_width
+        self.superpixel_filter_indices_template = torch.zeros((sp_h, sp_w), dtype=torch.long)
+        for di_ in range(sp_h):
+            for dj_ in range(sp_w):
+                self.superpixel_filter_indices_template[di_, dj_] = (di_ * sp_w + dj_) % config.num_filters
+
+
         self.data_dir = config.dataset_path
 
         # Make sure the directory exists, otherwise use a default location
@@ -144,6 +180,7 @@ class ReconstructionViewer(QMainWindow):
                   raise final_e # Stop execution if model cannot be loaded
 
 
+        self.model = self.model.to(self.device)
         self.model.eval()
 
 
@@ -151,30 +188,50 @@ class ReconstructionViewer(QMainWindow):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.model.to(self.device)
 
-        # Initialize band comparison dropdown values after model is loaded
-        for i in range(len(config.wavelength_indices)):
-            wavelength = config.full_wavelengths[config.wavelength_indices[i]]
-            self.band1_combo.addItem(f"{wavelength:.1f} nm")
-            self.band2_combo.addItem(f"{wavelength:.1f} nm")
-
-        # Add default values
+        # Populate band comparison dropdowns (wavelengths are now in self.wavelengths)
+        for i in range(self.num_selected_wavelengths):
+            wavelength_val = self.wavelengths[i]
+            self.band1_combo.addItem(f"{wavelength_val:.1f} nm")
+            self.band2_combo.addItem(f"{wavelength_val:.1f} nm")
         self.band1_combo.setCurrentIndex(0)
-        self.band2_combo.setCurrentIndex(len(config.wavelength_indices) // 2)
+        self.band2_combo.setCurrentIndex(self.num_selected_wavelengths // 2)
 
-        # Connect click events
+        # Wavelength slider (max value based on num_selected_wavelengths)
+        self.wavelength_slider.setMaximum(self.num_selected_wavelengths - 1)
+        self.wavelength_slider.setValue(self.num_selected_wavelengths // 2)
+
+
         self.canvas.mpl_connect('button_press_event', self.on_click)
-
-        # Analyze model efficiency
         self._analyze_model_efficiency()
-
-        # Populate analysis tab dropdowns if classifier loaded
         if self.classifier:
             self.target_material_combo.addItems(self.classifier.material_names)
-
-
-        # Create results directory if it doesn't exist
         if not os.path.exists(config.results_path):
             os.makedirs(config.results_path, exist_ok=True)
+
+        # # Initialize band comparison dropdown values after model is loaded
+        # for i in range(len(config.wavelength_indices)):
+        #     wavelength = config.full_wavelengths[config.wavelength_indices[i]]
+        #     self.band1_combo.addItem(f"{wavelength:.1f} nm")
+        #     self.band2_combo.addItem(f"{wavelength:.1f} nm")
+
+        # # Add default values
+        # self.band1_combo.setCurrentIndex(0)
+        # self.band2_combo.setCurrentIndex(len(config.wavelength_indices) // 2)
+
+        # # Connect click events
+        # self.canvas.mpl_connect('button_press_event', self.on_click)
+
+        # # Analyze model efficiency
+        # self._analyze_model_efficiency()
+
+        # # Populate analysis tab dropdowns if classifier loaded
+        # if self.classifier:
+        #     self.target_material_combo.addItems(self.classifier.material_names)
+
+
+        # # Create results directory if it doesn't exist
+        # if not os.path.exists(config.results_path):
+        #     os.makedirs(config.results_path, exist_ok=True)
 
     def _setup_reconstruction_tab(self):
         """Set up the reconstruction visualization tab."""
@@ -550,57 +607,118 @@ class ReconstructionViewer(QMainWindow):
             self.efficiency_table.setItem(2, 1, QTableWidgetItem("Error"))
 
     def reconstruct_image(self):
-        """Reconstruct the selected image using SRNet and calculate comprehensive metrics."""
         if not self.file_combo.currentText():
             QMessageBox.warning(self, "Warning", "No file selected.")
             return
 
-        start_time = time.time()
+        QApplication.setOverrideCursor(Qt.WaitCursor) # Show busy cursor
+        start_time_total = time.time()
         selected_file = self.file_combo.currentText()
 
         try:
             fullpath = os.path.join(self.data_dir, selected_file)
-            # Support both .npy and .tif/.tiff
+
+            # 1. Load Image Data (NumPy)
+            # This part is similar to your existing logic
             if selected_file.lower().endswith('.npy'):
-                # synthetic .npy: (bands, H, W)
-                cube = np.load(fullpath)
-                # to (H, W, bands)
-                cube = np.transpose(cube, (1, 2, 0))
-                # add batch dim -> (1, H, W, C)
-                img_data = cube[np.newaxis, ...]
-            else:
-                # legacy AVIRIS .tif
+                cube_np_bands_first = np.load(fullpath) # Assuming (bands, H, W)
+                # Transpose to (H, W, bands) for consistency
+                img_data_np_h_w_bands = np.transpose(cube_np_bands_first, (1, 2, 0))
+            elif selected_file.lower().endswith(('.tif', '.tiff')):
                 with rasterio.open(fullpath) as src:
-                    data = src.read()                         # (C, H, W)
-                cube = np.transpose(data, (1, 2, 0))           # (H, W, C)
-                img_data = cube.reshape((1, *cube.shape))      # (1, H, W, C)
+                    img_data_np_bands_first = src.read() # (bands, H, W)
+                img_data_np_h_w_bands = np.transpose(img_data_np_bands_first, (1, 2, 0)) # (H, W, bands)
+            else:
+                QMessageBox.critical(self, "Error", f"Unsupported file type: {selected_file}")
+                QApplication.restoreOverrideCursor()
+                return
 
-            # Create dataset with single image
-            dataset = FullImageHyperspectralDataset(img_data)
-            # Get the filtered measurements, filter pattern, and original spectrum
-            filtered_measurements, filter_pattern, original_spectrum = dataset[0]
+            H_orig, W_orig, C_orig = img_data_np_h_w_bands.shape
 
-            # Store wavelengths and original image
-            self.wavelengths = config.full_wavelengths[config.wavelength_indices]
-            self.original_image = original_spectrum.numpy()
+            # 2. Padding (NumPy, then to Tensor)
+            # Pad to be divisible by superpixel dimensions
+            sp_h, sp_w = config.superpixel_height, config.superpixel_width
+            pad_h = (sp_h - (H_orig % sp_h)) % sp_h
+            pad_w = (sp_w - (W_orig % sp_w)) % sp_w
 
-            # Move to appropriate device
-            filtered_measurements = filtered_measurements.to(self.device)
-            filter_pattern = filter_pattern.to(self.device)
+            # Using np.pad is often cleaner for this
+            # Pad only height and width (axis 0 and 1), not channels (axis 2)
+            # ((before_axis0, after_axis0), (before_axis1, after_axis1), ...)
+            img_data_padded_np = np.pad(
+                img_data_np_h_w_bands,
+                ((0, pad_h), (0, pad_w), (0, 0)),
+                mode='constant',
+                constant_values=0
+            )
+            H_pad, W_pad, _ = img_data_padded_np.shape
 
-            # Perform reconstruction
+            # 3. Convert to PyTorch Tensor and Select Wavelengths
+            # Assuming img_data_padded_np has all C_orig bands and config.wavelength_indices
+            # correctly selects from these C_orig bands.
+            # If C_orig is already the 32 bands from 800-1700nm, and config.wavelength_indices = np.arange(32),
+            # then this just takes all of them.
+            # Ensure config.wavelength_indices are valid for C_orig dimension.
+            if max(config.wavelength_indices) >= C_orig:
+                 QMessageBox.critical(self, "Error", f"Wavelength index out of bounds. Max index: {max(config.wavelength_indices)}, C_orig: {C_orig}")
+                 QApplication.restoreOverrideCursor()
+                 return
+
+            hypercube_slice_h_w_c = torch.from_numpy(
+                img_data_padded_np[:, :, config.wavelength_indices]
+            ).float() # Shape: [H_pad, W_pad, C_selected]
+
+            # 4. Normalization (PyTorch on GPU)
+            hypercube_slice_gpu = hypercube_slice_h_w_c.to(self.device)
+            max_val = torch.max(hypercube_slice_gpu)
+            if max_val > 0: # Avoid division by zero for blank images
+                hypercube_slice_gpu = hypercube_slice_gpu / max_val
+
+            # Store for visualization: permute to C, H, W and convert to NumPy
+            # This is the ground truth for metrics
+            self.original_image_chw_numpy = hypercube_slice_gpu.permute(2, 0, 1).cpu().numpy()
+
+            # 5. Create Filter Pattern Tensor (Vectorized)
+            # self.superpixel_filter_indices_template is [sp_h, sp_w]
+            # Tile it to full padded image size
+            num_h_tiles = H_pad // sp_h
+            num_w_tiles = W_pad // sp_w
+
+            # pixel_filter_indices_map is [H_pad, W_pad], values are 0 to num_filters-1
+            pixel_filter_indices_map = self.superpixel_filter_indices_template.tile(num_h_tiles, num_w_tiles)
+
+            # self.filter_matrix is [num_filters, C_selected] on device
+            # Gather the full spectral curve for each pixel based on its assigned filter
+            # filter_pattern_h_w_c will be [H_pad, W_pad, C_selected]
+            filter_pattern_h_w_c = self.filter_matrix[pixel_filter_indices_map.to(self.device)] # Ensure map is on device
+
+            # Permute to [C_selected, H_pad, W_pad] for model input
+            filter_pattern_input_tensor = filter_pattern_h_w_c.permute(2, 0, 1)
+
+            # 6. Create Filtered Measurements (Vectorized)
+            # hypercube_slice_gpu is [H_pad, W_pad, C_selected]
+            # filter_pattern_h_w_c is [H_pad, W_pad, C_selected] (from step 5)
+
+            # Element-wise multiplication and sum over the channel dimension
+            # This simulates applying each filter to its corresponding pixel's spectrum
+            measurements_h_w = torch.sum(hypercube_slice_gpu * filter_pattern_h_w_c, dim=-1)
+
+            # Add channel dimension: [1, H_pad, W_pad] for model input
+            filtered_measurements_input_tensor = measurements_h_w.unsqueeze(0)
+
+            # 7. Model Inference
+            # Add batch dimension to inputs
+            filtered_measurements_bchw = filtered_measurements_input_tensor.unsqueeze(0) # [1, 1, H_pad, W_pad]
+            filter_pattern_bchw = filter_pattern_input_tensor.unsqueeze(0)       # [1, C_sel, H_pad, W_pad]
+
+            inference_start_time = time.time()
             with torch.no_grad():
-                # Add batch dimension
-                filtered_measurements = filtered_measurements.unsqueeze(0)
-                filter_pattern = filter_pattern.unsqueeze(0)
+                reconstructed_bchw = self.model(filtered_measurements_bchw, filter_pattern_bchw)
+            inference_time = time.time() - inference_start_time
 
-                # Run model
-                reconstructed = self.model(filtered_measurements, filter_pattern)
+            # Remove batch dim, result is [C_selected, H_pad, W_pad]
+            self.full_reconstruction = reconstructed_bchw.cpu().squeeze(0) # Keep as tensor for metrics
 
-                # Move back to CPU and remove batch dimension
-                self.full_reconstruction = reconstructed.cpu().squeeze(0)
-
-            # --- Run Classification after Reconstruction ---
+            # --- Classification (after reconstruction, using self.full_reconstruction tensor) ---
             if self.classifier and self.full_reconstruction is not None:
                  print("Running classification...")
                  try:
@@ -610,83 +728,84 @@ class ReconstructionViewer(QMainWindow):
                      sam_threshold = 0.04
                      self.sam_threshold_input.setText("0.04")
 
+                 # Classifier expects C, H, W tensor or numpy array
                  self.classification_map, self.sam_map = self.classifier.classify_image(
-                     self.full_reconstruction,
+                     self.full_reconstruction, # Pass the PyTorch tensor directly
                      sam_threshold=sam_threshold
                  )
                  print("Classification complete.")
-                 # Optionally display SAM map or classification map by default
-                 # self.display_classification_map() # Example function call
             else:
                  self.classification_map = None
                  self.sam_map = None
                  print("Classifier not available or reconstruction failed.")
 
 
-            # Calculate comprehensive metrics
+            # 8. Calculate Metrics
+            # Metrics functions expect (pred_tensor, target_tensor) or (pred_numpy, target_numpy)
+            # self.original_image_chw_numpy is already NumPy C,H,W
+            # self.full_reconstruction is PyTorch C,H,W
             metrics = HyperspectralMetrics.compute_all_metrics(
-                self.full_reconstruction, torch.tensor(self.original_image)
+                self.full_reconstruction, # Pass tensor
+                torch.from_numpy(self.original_image_chw_numpy) # Convert target to tensor for consistency
             )
 
-            # Calculate combined loss components
+            # Calculate model's loss components (for reporting, not training)
             with torch.no_grad():
-                reconstructed_batch = self.full_reconstruction.unsqueeze(0)
-                original_batch = torch.tensor(self.original_image).unsqueeze(0)
-                criterion = torch.nn.MSELoss()
-
+                # Model's compute_loss expects batch dimension
                 _, loss_components = self.model.compute_loss(
-                    reconstructed_batch, original_batch, criterion
+                    self.full_reconstruction.unsqueeze(0).to(self.device), # Add batch, move to device
+                    torch.from_numpy(self.original_image_chw_numpy).unsqueeze(0).to(self.device), # Add batch, move to device
+                    torch.nn.MSELoss()
                 )
+            # Convert loss components from tensors to floats if they are not already
+            loss_components = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in loss_components.items()}
 
-            # Update time label
-            elapsed_time = time.time() - start_time
-            self.time_label.setText(f"Time: {elapsed_time:.2f}s")
 
-            # Update metrics display
+            # Update UI
+            total_elapsed_time = time.time() - start_time_total
+            self.time_label.setText(f"Time: {total_elapsed_time:.3f}s (Infer: {inference_time:.3f}s)")
+
             self.metrics_labels["PSNR"].setText(f"{metrics['psnr']:.2f} dB")
             self.metrics_labels["SSIM"].setText(f"{metrics['ssim']:.4f}")
             self.metrics_labels["RMSE"].setText(f"{metrics['rmse']:.6f}")
-            self.metrics_labels["MRAE"].setText(f"{metrics['mrae']:.4f}")
+            self.metrics_labels["MRAE"].setText(f"{metrics['mrae']:.4f}") # MRAE calculation was fine
             self.metrics_labels["Spectral Fidelity"].setText(f"{metrics['spectral_fidelity']:.4f}")
 
-            # Calculate spectral angle mapper (SAM)
-            sam = loss_components.get('spectral_angle_loss', 0.0)
-            self.metrics_labels["SAM"].setText(f"{sam:.4f}")
+            sam_loss_val = loss_components.get('spectral_angle_loss', 0.0)
+            self.metrics_labels["SAM"].setText(f"{sam_loss_val:.4f}")
 
-            # Update metrics visualization
             self._update_metrics_visualization(metrics, loss_components)
+            self.update_wavelength_display() # This will use self.original_image_chw_numpy
 
-            # Update main display
-            self.update_wavelength_display()
-
-            # Store metrics for later use
             self.current_metrics = metrics
             self.current_loss_components = loss_components
-
-            # Set window title with current file
             self.setWindowTitle(f'HSI Reconstruction - {selected_file} - PSNR: {metrics["psnr"]:.2f}dB')
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to reconstruct image: {str(e)}")
-            print(f"Error: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to reconstruct image: {str(e)}\nCheck console for traceback.")
+            import traceback
+            print(f"Error during reconstruction of {selected_file}:")
+            traceback.print_exc()
+        finally:
+            QApplication.restoreOverrideCursor() # Ensure cursor is restored
 
     def update_wavelength_display(self):
-        """Update display when wavelength slider changes."""
-        if self.wavelengths is None or self.original_image is None:
+        if self.wavelengths is None or self.original_image_chw_numpy is None or self.full_reconstruction is None:
             return
 
         idx = self.wavelength_slider.value()
         self.current_wavelength_idx = idx
-        wavelength = self.wavelengths[idx]
+        wavelength = self.wavelengths[idx] # self.wavelengths is already initialized
         self.wavelength_label.setText(f"Wavelength: {wavelength:.2f} nm")
 
-        # Clear the entire figure and recreate the axes
         self.figure.clear()
         self.ax_orig = self.figure.add_subplot(self.gs[0, 0])
         self.ax_recon = self.figure.add_subplot(self.gs[0, 1])
         self.ax_spectrum = self.figure.add_subplot(self.gs[1, :])
 
-        orig_img = self.original_image[idx]
+        # Use the C,H,W numpy array for original
+        orig_img = self.original_image_chw_numpy[idx]
+        # Use the C,H,W tensor for reconstructed, convert to numpy for imshow
         recon_img = self.full_reconstruction[idx].numpy()
 
         # Use same color scale for fair comparison
@@ -784,33 +903,28 @@ class ReconstructionViewer(QMainWindow):
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter valid integer coordinates.")
     def plot_spectrum(self, x, y):
-        """Plot spectrum for given coordinates."""
-        if self.original_image is None or self.full_reconstruction is None:
+        if self.original_image_chw_numpy is None or self.full_reconstruction is None:
             return
 
-        # Clear the spectrum axis completely
         self.ax_spectrum.clear()
-
-        # Remove any existing legend to avoid duplicates
         legend = self.ax_spectrum.get_legend()
-        if legend is not None:
-            legend.remove()
+        if legend is not None: legend.remove()
 
-        h, w = self.original_image.shape[1:]
+        # original_image_chw_numpy is [C, H, W]
+        h, w = self.original_image_chw_numpy.shape[1:]
         if 0 <= y < h and 0 <= x < w:
-            # Plot original and reconstructed spectra
-            self.ax_spectrum.plot(self.wavelengths,
-                                  self.original_image[:, y, x],
-                                  'b-', label='Original', linewidth=2)
-            self.ax_spectrum.plot(self.wavelengths,
-                                  self.full_reconstruction[:, y, x].numpy(),
-                                  'r--', label='Reconstructed', linewidth=2)
+            # Original spectrum from the NumPy array
+            orig_spec_data = self.original_image_chw_numpy[:, y, x]
+            # Reconstructed spectrum from the PyTorch tensor (convert to numpy for plotting)
+            recon_spec_data = self.full_reconstruction[:, y, x].numpy()
 
-            # Mark current wavelength if available
+            self.ax_spectrum.plot(self.wavelengths, orig_spec_data, 'b-', label='Original', linewidth=2)
+            self.ax_spectrum.plot(self.wavelengths, recon_spec_data, 'r--', label='Reconstructed', linewidth=2)
+
             if self.current_wavelength_idx is not None:
                 current_wl = self.wavelengths[self.current_wavelength_idx]
-                orig_value = self.original_image[self.current_wavelength_idx, y, x]
-                recon_value = self.full_reconstruction[self.current_wavelength_idx, y, x].numpy()
+                orig_value = orig_spec_data[self.current_wavelength_idx]
+                recon_value = recon_spec_data[self.current_wavelength_idx]
                 self.ax_spectrum.axvline(current_wl, color='gray', linestyle=':', alpha=0.7)
                 self.ax_spectrum.plot([current_wl], [orig_value], 'bo', markersize=8)
                 self.ax_spectrum.plot([current_wl], [recon_value], 'ro', markersize=8)
@@ -818,35 +932,31 @@ class ReconstructionViewer(QMainWindow):
             self.ax_spectrum.set_xlabel('Wavelength (nm)')
             self.ax_spectrum.set_ylabel('Intensity')
             self.ax_spectrum.set_title(f'Spectrum at ({x}, {y})')
-
-            # Set fixed y-axis limits (0,1)
-            self.ax_spectrum.set_ylim(0, 1)
-
-            # Create a new legend (old one was removed)
+            self.ax_spectrum.set_ylim(0, 1) # Keep fixed y-axis
             self.ax_spectrum.legend()
             self.ax_spectrum.grid(True)
 
-
-            self.canvas.draw()
-
-
-            # Calculate local metrics
-            orig_spectrum = self.original_image[:, y, x]
-            recon_spectrum = self.full_reconstruction[:, y, x].numpy()
-
-            # Calculate spectral angle
-            norm_orig = orig_spectrum / np.linalg.norm(orig_spectrum)
-            norm_recon = recon_spectrum / np.linalg.norm(recon_spectrum)
+            # Local metrics calculation (using NumPy arrays)
+            rmse_local = np.sqrt(np.mean((orig_spec_data - recon_spec_data)**2))
+            norm_orig = orig_spec_data / (np.linalg.norm(orig_spec_data) + 1e-8)
+            norm_recon = recon_spec_data / (np.linalg.norm(recon_spec_data) + 1e-8)
             dot_product = np.dot(norm_orig, norm_recon)
-            dot_product = np.clip(dot_product, -1.0, 1.0)  # Clip to prevent numerical errors
-            spectral_angle = np.arccos(dot_product)
+            dot_product = np.clip(dot_product, -1.0, 1.0)
+            spectral_angle_local = np.arccos(dot_product)
+            corr_local = np.corrcoef(orig_spec_data, recon_spec_data)[0,1] if np.std(orig_spec_data) > 1e-6 and np.std(recon_spec_data) > 1e-6 else 0.0
 
-            # Add metrics to the plot
+
             metrics_text = (
                 f"Point Metrics at ({x},{y}):\n"
-                f"RMSE: {np.sqrt(np.mean((orig_spectrum - recon_spectrum)**2)):.4f}\n"
-                f"Spectral Angle: {spectral_angle:.4f} rad\n"
-                f"Correlation: {np.corrcoef(orig_spectrum, recon_spectrum)[0,1]:.4f}"
+                f"RMSE: {rmse_local:.4f}\n"
+                f"SAM: {spectral_angle_local:.4f} rad\n" # Changed from Spectral Angle
+                f"Corr: {corr_local:.4f}"
+            )
+            self.ax_spectrum.text(
+                0.98, 0.98, metrics_text,
+                transform=self.ax_spectrum.transAxes,
+                ha='right', va='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
             )
 
             # Place the text in the upper right corner
@@ -856,12 +966,6 @@ class ReconstructionViewer(QMainWindow):
                 ha='right', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
             )
-
-            # # Set y-axis limits with some padding
-            # min_val = min(orig_spectrum.min(), recon_spectrum.min())
-            # max_val = max(orig_spectrum.max(), recon_spectrum.max())
-            # padding = 0.1 * (max_val - min_val)
-            # self.ax_spectrum.set_ylim(min_val - padding, max_val + padding)
 
             self.canvas.draw()
 

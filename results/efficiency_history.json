@@ -1,0 +1,46 @@
+[
+  {
+    "timestamp": "20250507_113917",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 26.553988456726074,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250507_115614",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 26.56276226043701,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  }
+]
