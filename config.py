@@ -22,7 +22,8 @@ class Config:
                                        'Plastics HSI Dataset',
                                        # 'SyntheticHSI_Images_Blue')
                                        # '042525_SyntheticHSI_Images_5shapes_multiple')
-                                       '043025_SyntheticHSI_Images_256x256_32wl_grids')
+                                       # '043025_SyntheticHSI_Images_256x256_32wl_grids')
+                                       '043025_SyntheticHSI_Images_512x512_16wl_grids')
 
 
 
@@ -41,7 +42,7 @@ class Config:
 
         # Model parameters
         self.batch_size = 16
-        self.num_epochs = 5
+        self.num_epochs = 2
         self.learning_rate = 1e-5
         self.num_filters = 16
         # self.num_filters = 16
@@ -50,15 +51,15 @@ class Config:
         # self.superpixel_size = 4 # Change superpixel size here
 
         # Modified parameters for AVIRIS dataset
-        self.image_height = 256  # For our cropped images
-        self.image_width = 256
+        self.image_height = 512  # For our cropped images
+        self.image_width = 512
         # Modified parameters for 100-wavelength synthetic data
-        self.num_wavelengths = 32  # Changed from 220 or 900
+        self.num_wavelengths = 16  # Changed from 220 or 900
         self.wavelength_range = (800, 1700)  # nm, keep same range
 
         # Synthetic bands run 800,801,…,1700 nm
         # Update wavelength indices and setup
-        self.full_wavelengths = np.linspace(800, 1700, 32)  # 100 evenly spaced points
+        self.full_wavelengths = np.linspace(800, 1700, 16)  # 100 evenly spaced points
         self.wavelength_indices = np.arange(len(self.full_wavelengths))  # All 100 indices
         self.num_output_wavelengths = len(self.wavelength_indices)  # 100 bands
 
@@ -73,8 +74,8 @@ class Config:
         # Updated model save path to use centralized location
         # Model save information: Date_Size_WL_Spectial_Test#
 
-        self.model_save_path = os.path.join(self.models_path, '050625_256p_32wl_Base_Claude_Test1.pth')
-        self.results_path = 'results/050625'
+        self.model_save_path = os.path.join(self.models_path, '050725_512p_16wl_Base_Claude_Test2.pth')
+        self.results_path = 'results/050725'
 
 config = Config()
 print(f"Number of wavelength indices: {len(config.wavelength_indices)}")

@@ -86,5 +86,27 @@
         ]
       }
     }
+  },
+  {
+    "timestamp": "20250507_122425",
+    "data": {
+      "parameters": 13996828,
+      "flops": 5900135424.0,
+      "time_per_frame_ms": 28.148698806762695,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
   }
 ]
