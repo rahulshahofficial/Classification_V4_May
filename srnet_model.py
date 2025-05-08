@@ -573,10 +573,8 @@ class SpectralReconstructionNet(nn.Module):
             0.5 * ssim_loss
         )
 
-        return total_loss, loss_components
 
-        # Weighted Sum of Losses - balanced to emphasize both spectral accuracy and perceptual quality
-        # # Increased weight on spectral smoothness to encourage smoother reconstructions
+        # OG LOSS function used in AVIRIS Dataset
         # total_loss = (
         #     recon_loss +
         #     0.1 * spatial_consistency_loss +
@@ -587,4 +585,7 @@ class SpectralReconstructionNet(nn.Module):
         #     0.5 * ssim_loss
         # )
         # Increased weight on spectral smoothness to encourage smoother reconstructions
+
+        return total_loss, loss_components
+
 

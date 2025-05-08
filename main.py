@@ -266,7 +266,7 @@ class HyperspectralProcessor:
 
 def main():
     """Main training and evaluation pipeline."""
-    num_images = 20
+    num_images = 100
 
     print("Starting Hyperspectral Neural Network Training Pipeline with SRNet...")
     print(f"\nConfiguration:")

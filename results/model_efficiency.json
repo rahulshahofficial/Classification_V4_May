@@ -1,11 +1,11 @@
 {
-  "parameters": 13996828,
-  "flops": 2582936289280.0,
-  "time_per_frame_ms": 512.0025157928467,
+  "parameters": 14015260,
+  "flops": 684388777984.0,
+  "time_per_frame_ms": 131.6906452178955,
   "model_info": {
     "name": "SpectralReconstructionNet",
-    "input_shape": "[16, 1, 512, 512]",
-    "filter_shape": "[16, 16, 512, 512]",
+    "input_shape": "[16, 1, 256, 256]",
+    "filter_shape": "[16, 32, 256, 256]",
     "device": "cuda"
   }
 }
