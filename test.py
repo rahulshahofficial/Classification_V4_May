@@ -512,7 +512,7 @@ class ReconstructionViewer(QMainWindow):
         highlight_layout.addWidget(self.highlight_btn)
 
         highlight_layout.addWidget(QLabel("SAM Threshold:"))
-        self.sam_threshold_input = QLineEdit("0.04") # Default threshold
+        self.sam_threshold_input = QLineEdit("0.08") # Default threshold
         self.sam_threshold_input.setFixedWidth(50)
         highlight_layout.addWidget(self.sam_threshold_input)
 
@@ -724,9 +724,9 @@ class ReconstructionViewer(QMainWindow):
                  try:
                      sam_threshold = float(self.sam_threshold_input.text())
                  except ValueError:
-                     QMessageBox.warning(self, "Invalid Input", "Invalid SAM threshold. Using 0.04.")
-                     sam_threshold = 0.04
-                     self.sam_threshold_input.setText("0.04")
+                     QMessageBox.warning(self, "Invalid Input", "Invalid SAM threshold. Using 0.08.")
+                     sam_threshold = 0.08
+                     self.sam_threshold_input.setText("0.08")
 
                  # Classifier expects C, H, W tensor or numpy array
                  self.classification_map, self.sam_map = self.classifier.classify_image(
@@ -1039,7 +1039,7 @@ class ReconstructionViewer(QMainWindow):
         ax4 = self.analysis_figure.add_subplot(224)
 
         # Original vs Reconstructed for band 1
-        orig_band1 = self.original_image[band1_idx]
+        orig_band1 = self.original_image_chw_numpy[band1_idx]
         recon_band1 = self.full_reconstruction[band1_idx].numpy()
 
         ax1.imshow(orig_band1, cmap='viridis')
@@ -1051,7 +1051,7 @@ class ReconstructionViewer(QMainWindow):
         ax2.axis('off')
 
         # Original vs Reconstructed for band 2
-        orig_band2 = self.original_image[band2_idx]
+        orig_band2 = self.original_image_chw_numpy[band2_idx]
         recon_band2 = self.full_reconstruction[band2_idx].numpy()
 
         ax3.imshow(orig_band2, cmap='viridis')
@@ -1089,7 +1089,7 @@ class ReconstructionViewer(QMainWindow):
         wavelength_idx = self.current_wavelength_idx if self.current_wavelength_idx is not None else 0
         wavelength = self.wavelengths[wavelength_idx]
 
-        orig = self.original_image[wavelength_idx]
+        orig = self.original_image_chw_numpy[wavelength_idx]
         recon = self.full_reconstruction[wavelength_idx].numpy()
 
         # Create error maps
@@ -1154,7 +1154,7 @@ class ReconstructionViewer(QMainWindow):
         self.analysis_figure.clear()
 
         # Calculate Spectral Angle Map
-        orig = self.original_image  # Shape: [C, H, W]
+        orig = self.original_image_chw_numpy  # Shape: [C, H, W]
         recon = self.full_reconstruction.numpy()  # Shape: [C, H, W]
 
         # Reshape for easier calculations
@@ -1217,7 +1217,7 @@ class ReconstructionViewer(QMainWindow):
         self.analysis_figure.clear()
 
         # Pick a few random pixels to analyze
-        h, w = self.original_image.shape[1:]
+        h, w = self.original_image_chw_numpy.shape[1:]
         num_pixels = 4
         pixels = []
 
@@ -1227,7 +1227,7 @@ class ReconstructionViewer(QMainWindow):
                 break
 
             x, y = np.random.randint(0, w), np.random.randint(0, h)
-            orig_spectrum = self.original_image[:, y, x]
+            orig_spectrum = self.original_image_chw_numpy[:, y, x]
 
             # Check if spectrum has enough variation (not just flat)
             if np.std(orig_spectrum) > 0.05:
@@ -1241,7 +1241,7 @@ class ReconstructionViewer(QMainWindow):
         # Calculate spectral derivatives for each pixel
         for i, (x, y) in enumerate(pixels):
             # Get spectra
-            orig_spectrum = self.original_image[:, y, x]
+            orig_spectrum = self.original_image_chw_numpy[:, y, x]
             recon_spectrum = self.full_reconstruction[:, y, x].numpy()
 
             # Create subplot
@@ -1380,7 +1380,7 @@ class ReconstructionViewer(QMainWindow):
         # Export data
         np.savez(
             file_path,
-            original=self.original_image,
+            original=self.original_image_chw_numpy,
             reconstructed=self.full_reconstruction.numpy(),
             wavelengths=self.wavelengths,
             metrics=self.current_metrics,

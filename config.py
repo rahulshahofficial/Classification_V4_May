@@ -74,8 +74,8 @@ class Config:
         # Updated model save path to use centralized location
         # Model save information: Date_Size_WL_Spectial_Test#
 
-        self.model_save_path = os.path.join(self.models_path, '050725_256p_32wl_Optimized_Dataset_py_gemini_Test1.pth')
-        self.results_path = 'results/050725'
+        self.model_save_path = os.path.join(self.models_path, '050825_256p_32wl_Optimized_Main_Dataset_Plots_py_gemini_Test3.pth')
+        self.results_path = 'results/050825'
 
 config = Config()
 print(f"Number of wavelength indices: {len(config.wavelength_indices)}")

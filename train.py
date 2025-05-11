@@ -475,23 +475,46 @@ class Trainer:
         return avg_metrics, all_outputs, all_targets
 
     def _plot_training_history(self, timestamp):
-        """
-        Create comprehensive visualizations of training history.
-        """
         plots_dir = os.path.join('plots', f'training_{timestamp}')
         os.makedirs(plots_dir, exist_ok=True)
+
+        epochs_ran = len(self.train_metrics_history['total_loss'])
+        if epochs_ran == 0:
+            print("No training history to plot.")
+            return
+
+        x_values = range(epochs_ran)
+
+        # --- Plot 1: Main Loss History (Training and Validation Total Loss) ---
         plt.figure(figsize=(10, 6))
-        plt.plot(self.train_metrics_history['total_loss'], label='Training Loss', color='blue', linewidth=2)
-        if self.val_loader is not None:
-            plt.plot(self.val_metrics_history['total_loss'], label='Validation Loss', color='red', linewidth=2)
-            min_val_idx = np.argmin(self.val_metrics_history['total_loss'])
-            min_val_loss = self.val_metrics_history['total_loss'][min_val_idx]
-            plt.plot(min_val_idx, min_val_loss, 'ro', markersize=8)
-            plt.annotate(f'Min: {min_val_loss:.4f}',
-                         (min_val_idx, min_val_loss),
-                         textcoords="offset points",
-                         xytext=(0,10),
-                         ha='center')
+
+        # Training Loss
+        train_total_loss_history = self.train_metrics_history['total_loss']
+        plt.plot(x_values, train_total_loss_history, label='Training Loss', color='blue', linewidth=2)
+        if epochs_ran > 0:
+            final_train_loss = train_total_loss_history[-1]
+            plt.text(epochs_ran - 1, final_train_loss, f'{final_train_loss:.4f}',
+                     color='blue', ha='right', va='bottom' if final_train_loss > (self.val_metrics_history['total_loss'][-1] if self.val_loader and epochs_ran > 0 and self.val_metrics_history['total_loss'] else 0) else 'top')
+
+        # Validation Loss
+        if self.val_loader is not None and self.val_metrics_history['total_loss']:
+            val_total_loss_history = self.val_metrics_history['total_loss']
+            # Ensure val_total_loss_history has same length as x_values for plotting
+            # This can happen if validation starts later or ends earlier.
+            # For simplicity, assume it's run for all epochs plotted.
+            if len(val_total_loss_history) == epochs_ran:
+                plt.plot(x_values, val_total_loss_history, label='Validation Loss', color='red', linewidth=2)
+                min_val_idx = np.argmin(val_total_loss_history)
+                min_val_loss = val_total_loss_history[min_val_idx]
+                plt.plot(min_val_idx, min_val_loss, 'ro', markersize=8, label=f'Best Val Loss: {min_val_loss:.4f}')
+                # Annotate final validation loss
+                final_val_loss = val_total_loss_history[-1]
+                plt.text(epochs_ran - 1, final_val_loss, f'{final_val_loss:.4f}',
+                         color='red', ha='right', va='bottom' if final_val_loss > final_train_loss else 'top')
+            else:
+                 print("Warning: Validation loss history length mismatch for plotting.")
+
+
         plt.xlabel('Epoch', fontsize=12)
         plt.ylabel('Loss', fontsize=12)
         plt.title('Training and Validation Loss', fontsize=14)
@@ -500,81 +523,98 @@ class Trainer:
         plt.savefig(os.path.join(plots_dir, 'loss_history.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
+        # --- Helper function for annotating final values ---
+        def annotate_final_value(ax, history_values, label, color, linestyle='-', linewidth=1.5):
+            if history_values: # Check if list is not empty
+                ax.plot(x_values, history_values, label=label, color=color, linestyle=linestyle, linewidth=linewidth) # Use the passed linewidth
+                final_value = history_values[-1]
+                ax.text(epochs_ran -1 , final_value, f'{final_value:.4f}', color=color, ha='left', va='center', fontsize=8,
+                        bbox=dict(facecolor='white', alpha=0.5, pad=0.1, edgecolor='none'))
+
+
         # --- Plot 2: Reconstruction Losses ---
-        plt.figure(figsize=(12, 6))
-        plt.plot(self.train_metrics_history['mse_loss'], label='Train MSE Loss (Standard)', color='orange', linestyle=':')
-        plt.plot(self.train_metrics_history['weighted_mse_loss'], label='Train Weighted MSE Loss', color='red', linewidth=2)
-        if self.val_loader is not None and 'weighted_mse_loss' in self.val_metrics_history:
-            plt.plot(self.val_metrics_history['mse_loss'], label='Val MSE Loss (Standard)', color='cyan', linestyle=':')
-            plt.plot(self.val_metrics_history['weighted_mse_loss'], label='Val Weighted MSE Loss', color='blue', linewidth=2)
-        plt.title('Reconstruction Loss Components')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss Value')
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.savefig(os.path.join(plots_dir, 'loss_reconstruction_history.png'), dpi=300, bbox_inches='tight')
-        plt.close()
+        fig_recon, ax_recon = plt.subplots(figsize=(12, 6))
+        annotate_final_value(ax_recon, self.train_metrics_history.get('mse_loss', []), 'Train MSE (Std)', 'orange', linestyle=':')
+        annotate_final_value(ax_recon, self.train_metrics_history.get('weighted_mse_loss', []), 'Train Weighted MSE', 'red')
+        if self.val_loader is not None:
+            annotate_final_value(ax_recon, self.val_metrics_history.get('mse_loss', []), 'Val MSE (Std)', 'cyan', linestyle=':')
+            annotate_final_value(ax_recon, self.val_metrics_history.get('weighted_mse_loss', []), 'Val Weighted MSE', 'blue')
+        ax_recon.set_title('Reconstruction Loss Components')
+        ax_recon.set_xlabel('Epoch')
+        ax_recon.set_ylabel('Loss Value')
+        ax_recon.legend()
+        ax_recon.grid(True, linestyle='--', alpha=0.7)
+        fig_recon.savefig(os.path.join(plots_dir, 'loss_reconstruction_history.png'), dpi=300, bbox_inches='tight')
+        plt.close(fig_recon)
 
         # --- Plot 3: Regularization Losses ---
-        plt.figure(figsize=(12, 8))
-        plt.subplot(2, 1, 1) # Top plot for smoothness/consistency
-        smooth_key = 'spectral_smoothness_loss'
-        spatial_key = 'spatial_consistency_loss'
-        tv_key = 'spectral_tv_loss'
-        if smooth_key in self.train_metrics_history: plt.plot(self.train_metrics_history[smooth_key], label=f'Train {smooth_key}')
-        if spatial_key in self.train_metrics_history: plt.plot(self.train_metrics_history[spatial_key], label=f'Train {spatial_key}')
-        if tv_key in self.train_metrics_history: plt.plot(self.train_metrics_history[tv_key], label=f'Train {tv_key}')
-        plt.title('Smoothness & Consistency Losses')
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.7)
+        fig_reg, (ax_reg_smooth, ax_reg_prior) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
-        plt.subplot(2, 1, 2) # Bottom plot for spectral priors
-        dict_key = 'spectral_dict_loss'
-        angle_key = 'spectral_angle_loss'
-        ssim_key = 'ssim_loss'
-        if dict_key in self.train_metrics_history: plt.plot(self.train_metrics_history[dict_key], label=f'Train {dict_key}', linewidth=2)
-        if angle_key in self.train_metrics_history: plt.plot(self.train_metrics_history[angle_key], label=f'Train {angle_key}')
-        if ssim_key in self.train_metrics_history: plt.plot(self.train_metrics_history[ssim_key], label=f'Train {ssim_key}')
-        # Add validation if available
-        if self.val_loader is not None and dict_key in self.val_metrics_history:
-            plt.plot(self.val_metrics_history[dict_key], label=f'Val {dict_key}', linestyle='--', linewidth=2)
-
-        plt.title('Spectral Prior & Perceptual Losses')
-        plt.xlabel('Epoch')
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, 'loss_regularization_history.png'), dpi=300, bbox_inches='tight')
-        plt.close()
-
+        # Smoothness & Consistency
+        annotate_final_value(ax_reg_smooth, self.train_metrics_history.get('spectral_smoothness_loss', []), 'Train Spectral Smoothness', 'green')
+        annotate_final_value(ax_reg_smooth, self.train_metrics_history.get('spatial_consistency_loss', []), 'Train Spatial Consistency', 'purple')
+        annotate_final_value(ax_reg_smooth, self.train_metrics_history.get('spectral_tv_loss', []), 'Train Spectral TV', 'brown')
+        # Validation Smoothness (if tracked)
         if self.val_loader is not None:
-            plt.figure(figsize=(15, 10))
-            plt.subplot(2, 2, 1)
-            plt.plot(self.val_metrics_history['psnr'], 'g-', label='PSNR')
-            plt.title('Peak Signal-to-Noise Ratio (PSNR)')
-            plt.ylabel('dB')
-            plt.grid(True)
+            annotate_final_value(ax_reg_smooth, self.val_metrics_history.get('spectral_smoothness_loss', []), 'Val Spectral Smoothness', 'lightgreen', linestyle='--')
+            annotate_final_value(ax_reg_smooth, self.val_metrics_history.get('spectral_tv_loss', []), 'Val Spectral TV', 'rosybrown', linestyle='--')
 
-            plt.subplot(2, 2, 2)
-            plt.plot(self.val_metrics_history['ssim'], 'm-', label='SSIM')
-            plt.title('Structural Similarity (SSIM)')
-            plt.grid(True)
+        ax_reg_smooth.set_title('Smoothness & Consistency Losses')
+        ax_reg_smooth.legend(loc='upper right')
+        ax_reg_smooth.grid(True, linestyle='--', alpha=0.7)
 
-            plt.subplot(2, 2, 3)
-            plt.plot(self.val_metrics_history['rmse'], 'r-', label='RMSE')
-            plt.title('Root Mean Square Error (RMSE)')
-            plt.xlabel('Epoch')
-            plt.grid(True)
+        # Spectral Priors & Perceptual
+        annotate_final_value(ax_reg_prior, self.train_metrics_history.get('spectral_dict_loss', []), 'Train Spectral Dict', 'teal', linewidth=2)
+        annotate_final_value(ax_reg_prior, self.train_metrics_history.get('spectral_angle_loss', []), 'Train Spectral Angle', 'magenta')
+        annotate_final_value(ax_reg_prior, self.train_metrics_history.get('ssim_loss', []), 'Train SSIM Loss', 'gold')
+        # Validation Priors (if tracked)
+        if self.val_loader is not None:
+             annotate_final_value(ax_reg_prior, self.val_metrics_history.get('spectral_dict_loss', []), 'Val Spectral Dict', 'skyblue', linestyle='--', linewidth=2)
+             annotate_final_value(ax_reg_prior, self.val_metrics_history.get('ssim_loss', []), 'Val SSIM Loss', 'khaki', linestyle='--')
 
-            plt.subplot(2, 2, 4)
-            plt.plot(self.val_metrics_history['spectral_fidelity'], 'b-', label='Spectral Fidelity')
-            plt.title('Spectral Fidelity')
-            plt.xlabel('Epoch')
-            plt.grid(True)
+        ax_reg_prior.set_title('Spectral Prior & Perceptual Losses')
+        ax_reg_prior.set_xlabel('Epoch')
+        ax_reg_prior.legend(loc='upper right')
+        ax_reg_prior.grid(True, linestyle='--', alpha=0.7)
 
-            plt.tight_layout()
-            plt.savefig(os.path.join(plots_dir, 'validation_metrics.png'), dpi=300, bbox_inches='tight')
-            plt.close()
+        fig_reg.tight_layout()
+        fig_reg.savefig(os.path.join(plots_dir, 'loss_regularization_history.png'), dpi=300, bbox_inches='tight')
+        plt.close(fig_reg)
+
+        # --- Plot 4: Validation Metrics (PSNR, SSIM, RMSE, Spectral Fidelity) ---
+        if self.val_loader is not None:
+            fig_val_metrics, axes_val_metrics = plt.subplots(2, 2, figsize=(15, 10), sharex=True)
+
+            ax_psnr = axes_val_metrics[0,0]
+            annotate_final_value(ax_psnr, self.val_metrics_history.get('psnr', []), 'PSNR', 'green')
+            ax_psnr.set_title('Peak Signal-to-Noise Ratio (PSNR)')
+            ax_psnr.set_ylabel('dB')
+            ax_psnr.grid(True)
+            ax_psnr.legend()
+
+            ax_ssim = axes_val_metrics[0,1]
+            annotate_final_value(ax_ssim, self.val_metrics_history.get('ssim', []), 'SSIM', 'magenta')
+            ax_ssim.set_title('Structural Similarity (SSIM)')
+            ax_ssim.grid(True)
+            ax_ssim.legend()
+
+            ax_rmse = axes_val_metrics[1,0]
+            annotate_final_value(ax_rmse, self.val_metrics_history.get('rmse', []), 'RMSE', 'red')
+            ax_rmse.set_title('Root Mean Square Error (RMSE)')
+            ax_rmse.set_xlabel('Epoch')
+            ax_rmse.grid(True)
+            ax_rmse.legend()
+
+            ax_sf = axes_val_metrics[1,1]
+            annotate_final_value(ax_sf, self.val_metrics_history.get('spectral_fidelity', []), 'Spectral Fidelity', 'blue')
+            ax_sf.set_title('Spectral Fidelity')
+            ax_sf.set_xlabel('Epoch')
+            ax_sf.grid(True)
+            ax_sf.legend()
+
+            fig_val_metrics.tight_layout()
+            fig_val_metrics.savefig(os.path.join(plots_dir, 'validation_metrics.png'), dpi=300, bbox_inches='tight')
+            plt.close(fig_val_metrics)
 
         print(f"Training plots saved to {plots_dir}")
 

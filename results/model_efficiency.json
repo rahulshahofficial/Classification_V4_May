@@ -1,7 +1,7 @@
 {
   "parameters": 14015260,
   "flops": 684388777984.0,
-  "time_per_frame_ms": 131.6906452178955,
+  "time_per_frame_ms": 130.88693618774414,
   "model_info": {
     "name": "SpectralReconstructionNet",
     "input_shape": "[16, 1, 256, 256]",
