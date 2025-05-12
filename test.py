@@ -512,7 +512,7 @@ class ReconstructionViewer(QMainWindow):
         highlight_layout.addWidget(self.highlight_btn)
 
         highlight_layout.addWidget(QLabel("SAM Threshold:"))
-        self.sam_threshold_input = QLineEdit("0.08") # Default threshold
+        self.sam_threshold_input = QLineEdit("0.06") # Default threshold
         self.sam_threshold_input.setFixedWidth(50)
         highlight_layout.addWidget(self.sam_threshold_input)
 
@@ -724,9 +724,9 @@ class ReconstructionViewer(QMainWindow):
                  try:
                      sam_threshold = float(self.sam_threshold_input.text())
                  except ValueError:
-                     QMessageBox.warning(self, "Invalid Input", "Invalid SAM threshold. Using 0.08.")
-                     sam_threshold = 0.08
-                     self.sam_threshold_input.setText("0.08")
+                     QMessageBox.warning(self, "Invalid Input", "Invalid SAM threshold. Using 0.06.")
+                     sam_threshold = 0.06
+                     self.sam_threshold_input.setText("0.06")
 
                  # Classifier expects C, H, W tensor or numpy array
                  self.classification_map, self.sam_map = self.classifier.classify_image(

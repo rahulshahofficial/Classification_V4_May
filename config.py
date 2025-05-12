@@ -20,10 +20,14 @@ class Config:
         # # Dataset paths
         self.dataset_path = os.path.join(self.base_path, 'HSI Data Sets',
                                        'Plastics HSI Dataset',
-                                       # 'SyntheticHSI_Images_Blue')
-                                       # '042525_SyntheticHSI_Images_5shapes_multiple')
-                                       '043025_SyntheticHSI_Images_256x256_32wl_grids')
-                                       # '043025_SyntheticHSI_Images_512x512_16wl_grids')
+                                       # 'Wavelength 16',
+                                       # # '043025_SyntheticHSI_Images_512x512_16wl_grids')
+                                       'Wavelength 32',
+                                       # '043025_SyntheticHSI_Images_256x256_32wl_grids')
+                                       "051225_SyntheticHSI_Images_512p_32wl_grids")
+                                       # "051225_SyntheticHSI_Images_1024p_32wl_grids")
+                                       # "051225_SyntheticHSI_Images_2048p_32wl_grids")
+                                       # "051225_SyntheticHSI_Images_64_32wl_overlap")
 
 
 

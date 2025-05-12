@@ -438,5 +438,291 @@
         ]
       }
     }
+  },
+  {
+    "timestamp": "20250511_111927",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 27.599740028381348,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_114718",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 33.300065994262695,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_115233",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 28.400278091430664,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_120048",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 28.902173042297363,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_121027",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 27.52988338470459,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_124747",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 28.70004177093506,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_160051",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 32.49993324279785,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_160323",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 28.10075283050537,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_160842",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 33.300232887268066,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_161011",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 32.30032920837402,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_161142",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 27.40042209625244,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_161541",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 31.000304222106934,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
+  },
+  {
+    "timestamp": "20250512_162319",
+    "data": {
+      "parameters": 14015260,
+      "flops": 6268775424.0,
+      "time_per_frame_ms": 28.100132942199707,
+      "model_config": {
+        "dimension": 64,
+        "stages": 3,
+        "blocks": [
+          1,
+          2,
+          3
+        ],
+        "heads": [
+          2,
+          4,
+          8
+        ]
+      }
+    }
   }
 ]

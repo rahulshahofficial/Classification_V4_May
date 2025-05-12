@@ -574,17 +574,17 @@ class SpectralReconstructionNet(nn.Module):
         )
 
 
-        # # OG LOSS function used in AVIRIS Dataset
-        # total_loss = (
-        #     1.0 * weighted_recon_loss +
-        #     0.1 * spatial_consistency_loss +
-        #     0.3 * spectral_smoothness_loss +  # Increased from 0.1 to 0.3
-        #     0.15 * spectral_tv_loss +         # Added TV loss for robust smoothness
-        #     0.2 * spectral_angle_loss +
-        #     0.3 * spectral_dict_loss +        # Added dictionary prior if available
-        #     0.5 * ssim_loss
-        # )
-        # # Increased weight on spectral smoothness to encourage smoother reconstructions
+        # OG LOSS function used in AVIRIS Dataset
+        total_loss = (
+            1.0 * unweighted_recon_loss +
+            0.3 * spatial_consistency_loss +
+            0.3 * spectral_smoothness_loss +  # Increased from 0.1 to 0.3
+            0.5 * spectral_tv_loss +         # Added TV loss for robust smoothness
+            0.8 * spectral_angle_loss +
+            0.5 * spectral_dict_loss +        # Added dictionary prior if available
+            0.5 * ssim_loss
+        )
+        # Increased weight on spectral smoothness to encourage smoother reconstructions
 
         return total_loss, loss_components
 
